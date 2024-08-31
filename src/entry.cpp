@@ -5,18 +5,41 @@ SQLITE_EXTENSION_INIT1
 #include <iostream>
 #include <vector>
 #include <new>
-#include <locale>
-#include <codecvt>
+
 struct MyTokenizer
 {
-  std::vector<std::wstring> words;
+  std::vector<std::string> words;
   size_t current;
 };
-std::wstring stringToWstring(const std::string &str)
+
+// 函数：将UTF-8字符串分割为单个字符
+static std::vector<std::string> split_utf8_string(const std::string &input)
 {
-  // 使用 wstring_convert 进行转换
-  std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-  return converter.from_bytes(str);
+  std::vector<std::string> result;
+  for (size_t i = 0; i < input.length();)
+  {
+    unsigned char c = input[i];
+    size_t char_len = 1;
+
+    // 判断UTF-8字符的字节长度
+    if (c >= 0xF0)
+    { // 4字节字符
+      char_len = 4;
+    }
+    else if (c >= 0xE0)
+    { // 3字节字符
+      char_len = 3;
+    }
+    else if (c >= 0xC0)
+    { // 2字节字符
+      char_len = 2;
+    }
+
+    // 从原字符串中截取一个完整的字符（字节序列）
+    result.push_back(input.substr(i, char_len));
+    i += char_len; // 移动到下一个字符
+  }
+  return result;
 }
 /**
  * 该函数用于分配和初始化标记器实例。标记器实例需要实际标记文本。
@@ -26,9 +49,9 @@ std::wstring stringToWstring(const std::string &str)
  */
 extern "C" int fts5_single_xCreate(void *, const char **azArg, int nArg, Fts5Tokenizer **ppOut)
 {
-  std::cout << "fts5_single_xCreate00" << std::endl;
+
   *ppOut = (Fts5Tokenizer *)new MyTokenizer();
-  std::cout << "fts5_single_xCreate" << std::endl;
+
   return SQLITE_OK;
 }
 
@@ -42,43 +65,31 @@ extern "C" void fts5_single_xDelete(Fts5Tokenizer *pTokenizer)
 }
 
 //  int (*xToken)(
-//       void *pCtx,          /* xTokenize() 的第二个参数的副本 */
+//     void *pCtx,          /* xTokenize() 的第二个参数的副本 */
 //     int tflags,          /* FTS5_TOKEN_* 标志的掩码 */
-//   const char *pToken, /* 指向包含标记的缓冲区的指针 */
-// int nToken,          /* 标记的大小（以字节为单位） */
+//   const char *pToken, /* 指向包含token的缓冲区的指针 */
+//    int nToken,          /* token的大小（以字节为单位） */
 //    int iStart,          /* 输入文本中标记的字节偏移量 */
 //  int iEnd             /* 输入文本中标记末尾的字节偏移量 */
 //    )
 extern "C" int fts5_single_xTokenize(Fts5Tokenizer *pTokenizer, void *pCtx, int tflags, const char *pText, int nText, int (*xToken)(void *pCtx, int tflags, const char *pToken, int nToken, int iStart, int iEnd))
 {
-  std::cout << "fts5_single_xTokenize" << std::endl;
+
   MyTokenizer *tokenizer = (MyTokenizer *)pTokenizer;
   tokenizer->words.clear();
   tokenizer->current = 0;
   std::string text(pText, nText);
-  std::cout << nText << std::endl;
-  std::wstring wtext = stringToWstring(text);
-  // text 转为 wstring
+  tokenizer->words = split_utf8_string(text);
 
-  std::wcout << L"分词text:" << wtext << std::endl;
-  std::cout << *pText + " " + nText << std::endl;
-  std::cout << text << std::endl;
   size_t start = 0;
   size_t end = 0;
-  // 将字符串分割为单个字符
-  for (wchar_t c : wtext)
-  {
-    tokenizer->words.push_back(std::wstring(1, c));
-  }
-  std::cout << "chandu1" + tokenizer->words.size() << std::endl;
-  // 调用回调函数
 
+  // 调用回调函数
   for (const auto &word : tokenizer->words)
   {
-    std::wcout << L"单个分词结果是：" << word << std::endl;
-    const char *c = (const char *)word.c_str();
     end = start + word.size();
-    xToken(pCtx, tflags, c, word.size(), start, end);
+    const char *wptr = word.c_str();
+    xToken(pCtx, tflags, wptr, word.size(), start, end);
     start = end;
   }
   return SQLITE_OK;

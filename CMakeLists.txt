@@ -6,8 +6,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CXX_STANDARD_REQUIRED)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")  
-set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "")
-set(CMAKE_OSX_DEPLOYMENT_TARGET "10.11" CACHE STRING "Minimum OS X deployment version")
+
 # 设置库文件的输出目录  
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib") 
 option(SQLITE_ENABLE_FTS5         "enables full text searches version 5"         ON)
